@@ -1,7 +1,8 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.contrib.auth.models import User
+from django.test import TestCase, Client
 from django.urls import reverse
 
 from notes.models import Note
@@ -15,41 +16,50 @@ class TestRoutes(TestCase):
     def setUpTestData(cls):
         # Создаём двух пользователей с разными именами:
         cls.author = User.objects.create(username='adic')
-        cls.reader = User.objects.create(username='padic')
+        cls.author_in=Client()
+        cls.reader_in=Client()
+        cls.author_in.force_login(cls.author)
+        cls.reader = User.objects.create(username='radic')
+        cls.reader_in.force_login(cls.reader)
         # От имени одного пользователя создаём комментарий к note:
         cls.notes = Note.objects.create(
+            title='Заголовок',
             author=cls.author,
-            text='Текст комментария'
+            text='Текст комментария',
+            slug='Slug1'
         ) 
-
-    def test_availability_for_comment_edit_and_delete(self):
-        users_statuses = (
-            (self.author, HTTPStatus.OK),
-            (self.reader, HTTPStatus.NOT_FOUND),
+        cls.urls_redirects =(
+            ('notes:delete', (cls.notes.slug,)),
         )
-        for user, status in users_statuses:
-            # Логиним пользователя в клиенте:
-            self.client.force_login(user)
-            # Для каждой пары "пользователь - ожидаемый ответ"
-            # перебираем имена тестируемых страниц:
-            for name in ('notes:edit', 'notes:delete'):  
-                with self.subTest(user=user, name=name):        
-                    url = reverse(name, args=(self.notes.id,))
-                    response = self.client.get(url)
-                    self.assertEqual(response.status_code, status)
+
+
 
     def test_pages_availability(self):
         urls = (
-            ('notes:home',None),
-            ('notes:edit',(self.notes.id,)),
-            ('notes:delete',(self.notes.id,)),
-            
+            ('notes:home'),
+            ('users:login'),
+            ('users:logout'),
+            ('users:signup')
         )
-        for name, args in urls:
+        for name in urls:
             with self.subTest(name=name):
-                url = reverse(name, args=args)
+                url = reverse(name)
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK) 
+
+    def test_availability_for_note_edit_and_delete(self):
+        users_statuses = (
+            (self.author_in, HTTPStatus.OK),
+            (self.reader_in, 404),
+        )
+        for user, status in users_statuses:
+            for name, args in self.urls_redirects:
+                with self.subTest(user=self.reader_in, name=name):        
+                    url = reverse(name, args=args)
+                    response = user.get(url)
+                    self.assertEqual(response.status_code, status)
+
+    
 
 
 
