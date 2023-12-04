@@ -34,7 +34,6 @@ class TestRoutes(TestCase):
         cls.urls_not_redirects = (
             ('notes:add', None),
             ('notes:list', None),
-
         )
 
     def test_pages_availability(self):
@@ -64,17 +63,12 @@ class TestRoutes(TestCase):
 
     def test_availability_note_for_no_auth(self):
         urls=self.urls_redirects+self.urls_not_redirects
-        print("urls:\n",urls)
         login_url = reverse('users:login')
-        print("login_url:\n",login_url)
         for name, args in urls:
             with self.subTest(name=name):
                 url = reverse(name, args=args)
-                print("url:\n",url)
                 redirect_url = f'{login_url}?next={url}'
-                print("redirect_url:\n",redirect_url)
                 response = self.client.get(url)
-                print("response:\n",response)
                 # Проверяем, что редирект приведёт именно на указанную ссылку.
                 self.assertRedirects(response, redirect_url)
 
